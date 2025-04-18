@@ -1,0 +1,106 @@
+import yt_dlp, sys
+from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QVBoxLayout, QLineEdit, QProgressBar
+from PyQt5.QtCore import Qt, pyqtSignal, QThread
+
+class Downloader(QThread):
+  progress_signal = pyqtSignal(int)
+  status_signal = pyqtSignal(str)
+  speed_signal = pyqtSignal(str)
+  time_signal = pyqtSignal(str)
+
+  def __init__(self, url):
+     super().__init__()
+     self.url = url
+
+  def format_eta(self, seconds):
+    if seconds is None:
+        return "N/A"
+    minutes, sec = divmod(int(seconds), 60)
+    return f"{minutes}m {sec}s" if minutes else f"{sec}s"
+  
+  def progress_hook(self, d):
+    if d['status'] == 'downloading':
+      downloaded = d.get('downloaded_bytes', 0)
+      total = d.get('total_bytes') or d.get('total_bytes_estimate')
+      speed = "Speed :" + d.get('_speed_str','N/A')
+      eta = d.get('eta')
+      eta = "ETA : " + self.format_eta(eta)
+      self.time_signal.emit(eta)
+      self.speed_signal.emit(speed)
+      if total:
+        percent = int(downloaded * 100/total)
+        self.progress_signal.emit(percent)
+    elif d['status'] == 'finished':
+      self.status_signal.emit('Download Finished')
+  
+  def run(self):
+    options = {
+      'format':'best',
+      'outtmpl': '%(title)s.%(ext)s',
+      'progress_hooks': [self.progress_hook],
+      'quiet': True,  # Prevent terminal output
+    }
+
+    with yt_dlp.YoutubeDL(options) as ydl:
+      ydl.download([self.url])
+
+
+class VideoDownloader(QWidget):
+  def __init__(self):
+    super().__init__()
+    self.setWindowTitle('igd_dev Video Downloader')
+    self.setGeometry(100, 100, 480, 60)  # x, y, width, height
+
+    self.label = QLabel('Enter a Download Link')
+    self.label.setAlignment(Qt.AlignLeft)
+
+    self.link = QLineEdit()
+    self.link.setAlignment(Qt.AlignLeft)
+    self.link.setPlaceholderText('Paste Link Here...')
+
+    self.button = QPushButton('Download')
+    self.button.clicked.connect(self.download)
+
+    self.progress = QProgressBar()
+    self.progress.setValue(0)
+
+    self.status = QLabel('')
+    self.status.setAlignment(Qt.AlignLeft)
+
+    self.estimatedTime = QLabel('ETA : ')
+    self.estimatedTime.setAlignment(Qt.AlignLeft)
+
+    self.speed = QLabel('Speed : ')
+    self.speed.setAlignment(Qt.AlignLeft)
+
+    self.layout = QVBoxLayout()
+    self.layout.addWidget(self.label)
+    self.layout.addWidget(self.link)
+    self.layout.addWidget(self.button)
+    self.layout.addWidget(self.progress)
+    self.layout.addWidget(self.status)
+    self.layout.addWidget(self.speed)
+    self.layout.addWidget(self.estimatedTime)
+    self.setLayout(self.layout)
+
+    self.show()
+
+  def download(self):
+    url = self.link.text()
+    if not url:
+        self.status.setText('Please enter a link')
+        return
+    
+    self.downloader = Downloader(url)
+    self.downloader.progress_signal.connect(self.progress.setValue)
+    self.downloader.status_signal.connect(self.status.setText)
+    self.downloader.speed_signal.connect(self.speed.setText)
+    self.downloader.time_signal.connect(self.estimatedTime.setText)
+    self.status.setText('Downloading...')
+    self.downloader.start()
+
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    window = VideoDownloader()
+    sys.exit(app.exec_())
