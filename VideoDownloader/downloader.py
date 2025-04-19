@@ -1,4 +1,4 @@
-import yt_dlp, sys
+import yt_dlp, sys, json
 from yt_dlp.utils import DownloadError
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QVBoxLayout, QLineEdit, QProgressBar, QComboBox, QCheckBox
 from PyQt5.QtCore import Qt, pyqtSignal, QThread
@@ -25,13 +25,15 @@ class Downloader(QThread):
     
     def progress_hook(self, d):
       if d['status'] == 'downloading':
-        playlistCurrentIndex = d.get('playlist_index')
-        playlistTotalCount = d.get('playlist_count')
+        info = d.get('info_dict', {})
+        currentItem = info.get('playlist_index')
+        totalItems = info.get('playlist_count')
+      
+        if currentItem is not None and totalItems is not None:
+          self.status_signal.emit(f'Downloading {currentItem} of {totalItems}')
+        else:
+          self.status_signal.emit(f'Downloading...')
 
-        if playlistCurrentIndex and playlistTotalCount:
-          self.status_signal.emit(f'Downloading {playlistCurrentIndex} of {playlistTotalCount}')
-        
-        self.status_signal.emit('Downloading...')
         downloaded = d.get('downloaded_bytes', 0)
         total = d.get('total_bytes') or d.get('total_bytes_estimate')
         speed = "Speed :" + d.get('_speed_str','N/A')
@@ -48,7 +50,6 @@ class Downloader(QThread):
 
       elif d['status'] == 'postprocessing':
         self.status_signal.emit("Postprocessing...")
-    
     
     def run(self):
       try:
