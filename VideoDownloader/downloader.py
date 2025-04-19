@@ -1,5 +1,5 @@
 import yt_dlp, sys
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QVBoxLayout, QLineEdit, QProgressBar
+from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QVBoxLayout, QLineEdit, QProgressBar, QComboBox
 from PyQt5.QtCore import Qt, pyqtSignal, QThread
 
 class Downloader(QThread):
@@ -7,6 +7,7 @@ class Downloader(QThread):
   status_signal = pyqtSignal(str)
   speed_signal = pyqtSignal(str)
   time_signal = pyqtSignal(str)
+  quality_signal = pyqtSignal(str)
 
   def __init__(self, url):
      super().__init__()
@@ -20,6 +21,7 @@ class Downloader(QThread):
   
   def progress_hook(self, d):
     if d['status'] == 'downloading':
+      self.status_signal.emit('Downloading...')
       downloaded = d.get('downloaded_bytes', 0)
       total = d.get('total_bytes') or d.get('total_bytes_estimate')
       speed = "Speed :" + d.get('_speed_str','N/A')
@@ -44,11 +46,23 @@ class Downloader(QThread):
     with yt_dlp.YoutubeDL(options) as ydl:
       ydl.download([self.url])
 
+videoQuality = {
+  '8k'    : '4320',
+  '4k'    : '2160',
+  '1440p' : '1440',
+  '1080p' : '1080',
+  '720p'  : '720',
+  '480p'  : '480',
+  '360p'  : '360',
+  '240p'  : '240',
+  '144p'  : '144',
+}
+
 
 class VideoDownloader(QWidget):
   def __init__(self):
     super().__init__()
-    self.setWindowTitle('igd_dev Video Downloader')
+    self.setWindowTitle('Portable Video Downloader')
     self.setGeometry(100, 100, 480, 60)  # x, y, width, height
 
     self.label = QLabel('Enter a Download Link')
@@ -57,6 +71,12 @@ class VideoDownloader(QWidget):
     self.link = QLineEdit()
     self.link.setAlignment(Qt.AlignLeft)
     self.link.setPlaceholderText('Paste Link Here...')
+
+    self.selectQuality = QLabel('Select Quality : ')
+    self.qualityDropdown = QComboBox()
+    for quality in videoQuality:
+      self.qualityDropdown.addItem(quality)
+    self.qualityDropdown.currentIndexChanged.connect(self.setQuality)
 
     self.button = QPushButton('Download')
     self.button.clicked.connect(self.download)
@@ -67,23 +87,30 @@ class VideoDownloader(QWidget):
     self.status = QLabel('')
     self.status.setAlignment(Qt.AlignLeft)
 
-    self.estimatedTime = QLabel('ETA : ')
+    self.estimatedTime = QLabel('ETA : N/A')
     self.estimatedTime.setAlignment(Qt.AlignLeft)
 
-    self.speed = QLabel('Speed : ')
+    self.speed = QLabel('Speed : N/A')
     self.speed.setAlignment(Qt.AlignLeft)
 
     self.layout = QVBoxLayout()
     self.layout.addWidget(self.label)
     self.layout.addWidget(self.link)
+    self.layout.addWidget(self.selectQuality)
+    self.layout.addWidget(self.qualityDropdown)
     self.layout.addWidget(self.button)
     self.layout.addWidget(self.progress)
     self.layout.addWidget(self.status)
     self.layout.addWidget(self.speed)
     self.layout.addWidget(self.estimatedTime)
     self.setLayout(self.layout)
-
     self.show()
+
+    
+  def setQuality(self, value):
+    selectedQuality = self.qualityDropdown.itemText(value)
+    self.downloader.quality_signal.connect((int(videoQuality[selectedQuality])))
+    print(f'Selected Qulity : {selectedQuality}')
 
   def download(self):
     url = self.link.text()
@@ -96,7 +123,8 @@ class VideoDownloader(QWidget):
     self.downloader.status_signal.connect(self.status.setText)
     self.downloader.speed_signal.connect(self.speed.setText)
     self.downloader.time_signal.connect(self.estimatedTime.setText)
-    self.status.setText('Downloading...')
+    # self.downloader.quality_signal.connect(self.selectQuality.setText)
+    self.status.setText('Establisihing Connection...')
     self.downloader.start()
 
 
