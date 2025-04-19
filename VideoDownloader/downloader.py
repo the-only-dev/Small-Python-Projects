@@ -1,7 +1,10 @@
 import yt_dlp, sys, json
 from yt_dlp.utils import DownloadError
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QPushButton, QVBoxLayout, QLineEdit, QProgressBar, QComboBox, QCheckBox
+from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QPushButton,QHBoxLayout, QVBoxLayout, QLineEdit, QProgressBar, QComboBox, QCheckBox
 from PyQt5.QtCore import Qt, pyqtSignal, QThread
+
+class DownloadCancelled(Exception):
+  pass
 
 class Downloader(QThread):
   try:
@@ -16,6 +19,7 @@ class Downloader(QThread):
       super().__init__()
       self.url = url
       self.playlistDownload = playlistDownload
+      self.cancelled = False
       
     def format_eta(self, seconds):
       if seconds is None:
@@ -24,15 +28,19 @@ class Downloader(QThread):
       return f"{minutes}m {sec}s" if minutes else f"{sec}s"
     
     def progress_hook(self, d):
+      if self.cancelled:
+        self.status_signal.emit('Status : Download Cancelled')
+        raise DownloadCancelled()
+      
       if d['status'] == 'downloading':
         info = d.get('info_dict', {})
         currentItem = info.get('playlist_index')
         totalItems = info.get('playlist_count')
       
         if currentItem is not None and totalItems is not None:
-          self.status_signal.emit(f'Downloading {currentItem} of {totalItems}')
+          self.status_signal.emit(f'Status : Downloading {currentItem} of {totalItems}')
         else:
-          self.status_signal.emit(f'Downloading...')
+          self.status_signal.emit(f'Status : Downloading...')
 
         downloaded = d.get('downloaded_bytes', 0)
         total = d.get('total_bytes') or d.get('total_bytes_estimate')
@@ -44,22 +52,23 @@ class Downloader(QThread):
         if total:
           percent = int(downloaded * 100/total)
           self.progress_signal.emit(percent)
-
+      
       elif d['status'] == 'finished':
-        self.status_signal.emit('Download Finished')
+        self.status_signal.emit('Status : Download Finished')
 
       elif d['status'] == 'postprocessing':
-        self.status_signal.emit("Postprocessing...")
+        self.status_signal.emit("Status : Postprocessing...")
     
     def run(self):
-      try:
+      try:  
         options = {
           'format':f'bestvideo[height<={self.qualityVideo}]+bestaudio',
           'merge_output_format':'mp4',
           'outtmpl': '%(title)s.%(ext)s',
           'progress_hooks': [self.progress_hook],
           'quiet': True,  # Prevent terminal output
-          'noplaylist': not self.playlistDownload
+          'noplaylist': not self.playlistDownload,
+          # 'cookiesfrombrowser' : 'chrome',
         }
         with yt_dlp.YoutubeDL(options) as ydl:
           ydl.download([self.url])
@@ -67,8 +76,11 @@ class Downloader(QThread):
           self.speed_signal.emit('N/A')
           self.time_signal.emit('N/A')
           self.status_signal.emit('All Done!')
+      except DownloadCancelled:
+        self.status_signal.emit('Status : Download Cancelled')
+
       except DownloadError as e:
-        self.status_signal.emit(f'Unexpected Error : {e}')
+        self.status_signal.emit(f'Status : Unexpected Error : {e}')
 
   except Exception as e:
     print(f'Found Exception in Class Downloader : {e}')
@@ -91,7 +103,7 @@ class VideoDownloader(QWidget):
     def __init__(self):
       super().__init__()
       self.setWindowTitle('Portable Video Downloader')
-      self.setGeometry(100, 100, 480, 60)  # x, y, width, height
+      self.setGeometry(100, 100, 640, 280)  # x, y, width, height
 
       self.label = QLabel('Enter a Download Link')
       self.label.setAlignment(Qt.AlignLeft)
@@ -111,13 +123,17 @@ class VideoDownloader(QWidget):
         self.qualityDropdown.addItem(quality)
       self.qualityDropdown.currentIndexChanged.connect(self.setQuality)
 
-      self.button = QPushButton('Download')
-      self.button.clicked.connect(self.startDownload)
+      self.downloadButton = QPushButton('Download')
+      self.downloadButton.clicked.connect(self.startDownload)
+
+      self.cancelButton = QPushButton('Cancel')
+      self.cancelButton.clicked.connect(self.cancelDownload)
+      self.cancelButton.setEnabled(False)
 
       self.progress = QProgressBar()
       self.progress.setValue(0)
 
-      self.status = QLabel('')
+      self.status = QLabel('Status : --- ')
       self.status.setAlignment(Qt.AlignLeft)
 
       self.estimatedTime = QLabel('ETA : N/A')
@@ -126,17 +142,25 @@ class VideoDownloader(QWidget):
       self.speed = QLabel('Speed : N/A')
       self.speed.setAlignment(Qt.AlignLeft)
 
+      self.hLayout = QHBoxLayout()
+      self.hLayout.addWidget(self.downloadButton)
+      self.hLayout.addWidget(self.cancelButton)
+      
+      self.infoLayout = QHBoxLayout()
+      self.infoLayout.addWidget(self.speed)
+      self.infoLayout.addWidget(self.estimatedTime)
+
       self.layout = QVBoxLayout()
       self.layout.addWidget(self.label)
       self.layout.addWidget(self.link)
       self.layout.addWidget(self.selectQuality)
       self.layout.addWidget(self.qualityDropdown)
       self.layout.addWidget(self.allowPlaylist)
-      self.layout.addWidget(self.button)
       self.layout.addWidget(self.progress)
       self.layout.addWidget(self.status)
-      self.layout.addWidget(self.speed)
-      self.layout.addWidget(self.estimatedTime)
+      self.layout.addLayout(self.infoLayout)
+      self.layout.addLayout(self.hLayout)
+      
       self.setLayout(self.layout)
       self.show()
 
@@ -159,8 +183,15 @@ class VideoDownloader(QWidget):
       self.downloader.status_signal.connect(self.status.setText)
       self.downloader.speed_signal.connect(self.speed.setText)
       self.downloader.time_signal.connect(self.estimatedTime.setText)
-      self.status.setText('Establisihing Connection...')
+      self.status.setText('Status : Establisihing Connection...')
       self.downloader.start()
+      self.cancelButton.setEnabled(True)
+
+    def cancelDownload(self):
+      if self.downloader:
+        self.downloader.cancelled = True
+        self.status_signal.emit("Status : Cancelling download...")
+        self.cancelButton.setEnabled(False)
 
   except Exception as e:
     print(f'Found Exception in Class VideoDownloader : {e}')
