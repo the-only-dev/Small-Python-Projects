@@ -7,7 +7,7 @@ class Downloader(QThread):
   status_signal = pyqtSignal(str)
   speed_signal = pyqtSignal(str)
   time_signal = pyqtSignal(str)
-  quality_signal = pyqtSignal(str)
+  quality_signal = pyqtSignal(int)
 
   def __init__(self, url):
      super().__init__()
@@ -79,7 +79,7 @@ class VideoDownloader(QWidget):
     self.qualityDropdown.currentIndexChanged.connect(self.setQuality)
 
     self.button = QPushButton('Download')
-    self.button.clicked.connect(self.download)
+    self.button.clicked.connect(self.startDownload)
 
     self.progress = QProgressBar()
     self.progress.setValue(0)
@@ -109,10 +109,9 @@ class VideoDownloader(QWidget):
     
   def setQuality(self, value):
     selectedQuality = self.qualityDropdown.itemText(value)
-    self.downloader.quality_signal.connect((int(videoQuality[selectedQuality])))
-    print(f'Selected Qulity : {selectedQuality}')
+    self.selectQuality.setText(f'Select Quality : {selectedQuality}')
 
-  def download(self):
+  def startDownload(self):
     url = self.link.text()
     if not url:
         self.status.setText('Please enter a link')
@@ -123,7 +122,6 @@ class VideoDownloader(QWidget):
     self.downloader.status_signal.connect(self.status.setText)
     self.downloader.speed_signal.connect(self.speed.setText)
     self.downloader.time_signal.connect(self.estimatedTime.setText)
-    # self.downloader.quality_signal.connect(self.selectQuality.setText)
     self.status.setText('Establisihing Connection...')
     self.downloader.start()
 
