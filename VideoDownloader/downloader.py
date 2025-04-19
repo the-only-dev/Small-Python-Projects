@@ -10,7 +10,7 @@ class Downloader(QThread):
     speed_signal = pyqtSignal(str)
     time_signal = pyqtSignal(str)
     qualityVideo = ''
-    print(f'Video Received is : {qualityVideo}')
+    # print(f'Video Received is : {qualityVideo}')
 
     def __init__(self, url, playlistDownload):
       super().__init__()
@@ -30,9 +30,8 @@ class Downloader(QThread):
 
         if playlistCurrentIndex and playlistTotalCount:
           self.status_signal.emit(f'Downloading {playlistCurrentIndex} of {playlistTotalCount}')
-        else:
-          self.status_signal.emit('Downloading...')
-          
+        
+        self.status_signal.emit('Downloading...')
         downloaded = d.get('downloaded_bytes', 0)
         total = d.get('total_bytes') or d.get('total_bytes_estimate')
         speed = "Speed :" + d.get('_speed_str','N/A')
@@ -43,8 +42,12 @@ class Downloader(QThread):
         if total:
           percent = int(downloaded * 100/total)
           self.progress_signal.emit(percent)
+
       elif d['status'] == 'finished':
         self.status_signal.emit('Download Finished')
+
+      elif d['status'] == 'postprocessing':
+        self.status_signal.emit("Postprocessing...")
     
     
     def run(self):
@@ -97,11 +100,11 @@ class VideoDownloader(QWidget):
       self.link.setPlaceholderText('Paste Link Here...')
 
       #Allow Playlist 
-      self.allowPlaylist = QCheckBox('Enable Playlist Download (Will Download Entire Playlist) ')
+      self.allowPlaylist = QCheckBox('Enable Playlist Download ( Will Download Entire Playlist ) ')
       self.allowPlaylist.setChecked(False)
 
       #Adding a Quality Selector Dropdown
-      self.selectQuality = QLabel('Select Quality : 8k (Use Video Max if selected quality isnt available)')
+      self.selectQuality = QLabel('Select Quality : 8k ( Uses original max resolution if selected quality isnt available )')
       self.qualityDropdown = QComboBox()
       for quality in videoQuality:
         self.qualityDropdown.addItem(quality)
