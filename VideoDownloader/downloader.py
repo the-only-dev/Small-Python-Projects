@@ -115,7 +115,7 @@ class VideoDownloader(QWidget):
     self.link.setAlignment(Qt.AlignLeft)
     self.link.setPlaceholderText('Paste Link Here...')
 
-    self.LinkLayout = QHBoxLayout() #LinkLayout
+    self.LinkLayout = QHBoxLayout() # First Layer
     self.LinkLayout.addWidget(self.label)
     self.LinkLayout.addWidget(self.link)
 
@@ -133,7 +133,7 @@ class VideoDownloader(QWidget):
     self.speed = QLabel('Speed : N/A')
     self.speed.setAlignment(Qt.AlignLeft)
 
-    self.downloadInfoLayout = QVBoxLayout()  #downloadInfoLayout
+    self.downloadInfoLayout = QVBoxLayout()
     self.downloadInfoLayout.addWidget(self.progress)
     self.downloadInfoLayout.addWidget(self.status)
     self.downloadInfoLayout.addWidget(self.speed)
@@ -154,45 +154,67 @@ class VideoDownloader(QWidget):
       self.qualityDropdown.addItem(quality)
     self.qualityDropdown.currentIndexChanged.connect(self.setQuality)
 
-    self.qualityLayout = QHBoxLayout() #qualityLayout
+    self.qualityLayout = QHBoxLayout() 
     self.qualityLayout.addWidget(self.selectQuality)
     self.qualityLayout.addWidget(self.qualityDropdown)
 
     self.groupOptionLayout = QVBoxLayout() 
     self.groupOptionLayout.addWidget(self.allowPlaylist)
-    self.groupOptionLayout.addWidget(self.qualityLayout)
+    self.groupOptionLayout.addLayout(self.qualityLayout)
     
-    self.InfoAndOptionLayout = QHBoxLayout()
-    self.InfoAndOptionLayout.addWidget(self.downloadInfoLayout)
-    self.InfoAndOptionLayout.addWidget(self.groupOptionLayout)
-    self.InfoAndOptionLayout = QHBoxLayout()
-    
+    self.InfoAndOptionLayout = QHBoxLayout()  # Second Layer
+    self.InfoAndOptionLayout.addLayout(self.downloadInfoLayout)
+    self.InfoAndOptionLayout.addLayout(self.groupOptionLayout)
+
+    #Item 3 : ( In Development )
+    # 3.1 : Download Location
+    self.locationLabel = QLabel('Select Location')
+
+    self.storageLayout = QHBoxLayout()      # Third Layer
+    self.storageLayout.addWidget(self.locationLabel)
+
+
+    #Item 4 : 
+    # 4.1 : Buttons
     self.downloadButton = QPushButton('Download')
     self.downloadButton.clicked.connect(self.startDownload)
     self.downloadButton.setObjectName('downloadButton')
+
+    self.pauseButton = QPushButton('Pause')
+    # self.pauseButton.clicked.connect()
+    self.pauseButton.setObjectName('pauseButton')
 
     self.cancelButton = QPushButton('Cancel')
     self.cancelButton.setObjectName('cancelBtn')
     self.cancelButton.clicked.connect(self.cancelDownload)
     self.cancelButton.setEnabled(False)
 
-    self.hLayout = QHBoxLayout()
-    self.hLayout.addWidget(self.downloadButton)
-    self.hLayout.addWidget(self.cancelButton)
+    self.buttonLayout = QHBoxLayout()
+    self.buttonLayout.addWidget(self.downloadButton)
+    self.buttonLayout.addWidget(self.pauseButton)
+    self.buttonLayout.addWidget(self.cancelButton)
 
+    #Item 5 :
+    #5.1 : History
+    self.historyLabel = QLabel('History Layout tho its small rn')
 
+    self.historyItems = QLabel("Item name")
 
-    self.layout = QVBoxLayout()
-    self.layout.addWidget(self.label)
-    self.layout.addWidget(self.link)
-    self.layout.addWidget(self.selectQuality)
-    self.layout.addWidget(self.qualityDropdown)
-    self.layout.addWidget(self.allowPlaylist)
+    self.historyLayout = QVBoxLayout()
+    self.historyLayout.addWidget(self.historyLabel)
+    self.historyLayout.addWidget(self.historyItems)
 
-    self.layout.addLayout(self.infoLayout)
-    self.layout.addLayout(self.hLayout)
-    
-    self.setLayout(self.layout)
+    self.leftSideLayout = QVBoxLayout()
+    self.leftSideLayout.addLayout(self.LinkLayout)
+    self.leftSideLayout.addLayout(self.InfoAndOptionLayout)
+    self.leftSideLayout.addLayout(self.storageLayout)
+    self.leftSideLayout.addLayout(self.buttonLayout)
+
+    self.mainLayout = QHBoxLayout()
+    self.mainLayout.addLayout(self.leftSideLayout)
+    self.mainLayout.addLayout(self.historyLayout)
+
+    self.setLayout(self.mainLayout)
     self.setStyleSheet(self.load_styles())
     self.show()
 
@@ -207,8 +229,6 @@ class VideoDownloader(QWidget):
     }
 
     #smallDropdown {
-        background-color: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 1,
-                                        stop: 0 red, stop: 1 blue);
       max-width: 80px;
       font-family: arial;
       font-weight: bold;
