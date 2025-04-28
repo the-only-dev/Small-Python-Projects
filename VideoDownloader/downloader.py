@@ -77,6 +77,7 @@ class Downloader(QThread):
         self.time_signal.emit('N/A')
         self.status_signal.emit('All Done!')
     except DownloadCancelled:
+      self.progress_signal.emit(0)
       self.status_signal.emit('Status : Download Cancelled')
 
     except DownloadError as e:
@@ -101,10 +102,12 @@ class VideoDownloader(QWidget):
   def __init__(self):
     super().__init__()
     self.setWindowTitle('Portable Video Downloader')
-    self.setGeometry(100, 100, 640, 280)  # x, y, width, height
+    self.setGeometry(100, 100, 1280, 720)  # x, y, width, height
     self.setObjectName('mainWindow')
 
-    self.label = QLabel('Enter a Download Link')
+    # Item 1 : 
+    # 1.1 : Paste Link Layout ------------------------------------------------
+    self.label = QLabel('Paste Link')
     self.label.setObjectName('labels')
     self.label.setAlignment(Qt.AlignLeft)
 
@@ -112,29 +115,12 @@ class VideoDownloader(QWidget):
     self.link.setAlignment(Qt.AlignLeft)
     self.link.setPlaceholderText('Paste Link Here...')
 
-    #Allow Playlist 
-    self.allowPlaylist = QCheckBox('Enable Playlist Download ( Will Download Entire Playlist ) ')
-    self.allowPlaylist.setObjectName('labels')
-    self.allowPlaylist.setChecked(False)
+    self.LinkLayout = QHBoxLayout() #LinkLayout
+    self.LinkLayout.addWidget(self.label)
+    self.LinkLayout.addWidget(self.link)
 
-    #Adding a Quality Selector Dropdown
-    self.selectQuality = QLabel('Select Quality : 8k (Default)')
-    self.qualityDropdown = QComboBox()
-    self.selectQuality.setObjectName('labels')
-    self.qualityDropdown.setObjectName('smallDropdown')
-    for quality in videoQuality:
-      self.qualityDropdown.addItem(quality)
-    self.qualityDropdown.currentIndexChanged.connect(self.setQuality)
-
-    self.downloadButton = QPushButton('Download')
-    self.downloadButton.clicked.connect(self.startDownload)
-    self.downloadButton.setObjectName('downloadButton')
-
-    self.cancelButton = QPushButton('Cancel')
-    self.cancelButton.setObjectName('cancelBtn')
-    self.cancelButton.clicked.connect(self.cancelDownload)
-    self.cancelButton.setEnabled(False)
-
+    # Item 2 : 
+    # 2.1 : Progressbar and Speed Layout -------------------------------------
     self.progress = QProgressBar()
     self.progress.setValue(0)
 
@@ -147,13 +133,54 @@ class VideoDownloader(QWidget):
     self.speed = QLabel('Speed : N/A')
     self.speed.setAlignment(Qt.AlignLeft)
 
+    self.downloadInfoLayout = QVBoxLayout()  #downloadInfoLayout
+    self.downloadInfoLayout.addWidget(self.progress)
+    self.downloadInfoLayout.addWidget(self.status)
+    self.downloadInfoLayout.addWidget(self.speed)
+    self.downloadInfoLayout.addWidget(self.estimatedTime)
+   
+    # 2.2 : Options Section --------------------------------------------------
+    #Allow Playlist Download
+    self.allowPlaylist = QCheckBox('Playlist Download')
+    self.allowPlaylist.setObjectName('labels')
+    self.allowPlaylist.setChecked(False)
+
+    #Adding a Quality Selector Dropdown
+    self.selectQuality = QLabel('Select Quality : 8k (Default)')
+    self.qualityDropdown = QComboBox()
+    self.selectQuality.setObjectName('labels')
+    self.qualityDropdown.setObjectName('smallDropdown')
+    for quality in videoQuality:
+      self.qualityDropdown.addItem(quality)
+    self.qualityDropdown.currentIndexChanged.connect(self.setQuality)
+
+    self.qualityLayout = QHBoxLayout() #qualityLayout
+    self.qualityLayout.addWidget(self.selectQuality)
+    self.qualityLayout.addWidget(self.qualityDropdown)
+
+    self.groupOptionLayout = QVBoxLayout() 
+    self.groupOptionLayout.addWidget(self.allowPlaylist)
+    self.groupOptionLayout.addWidget(self.qualityLayout)
+    
+    self.InfoAndOptionLayout = QHBoxLayout()
+    self.InfoAndOptionLayout.addWidget(self.downloadInfoLayout)
+    self.InfoAndOptionLayout.addWidget(self.groupOptionLayout)
+    self.InfoAndOptionLayout = QHBoxLayout()
+    
+    self.downloadButton = QPushButton('Download')
+    self.downloadButton.clicked.connect(self.startDownload)
+    self.downloadButton.setObjectName('downloadButton')
+
+    self.cancelButton = QPushButton('Cancel')
+    self.cancelButton.setObjectName('cancelBtn')
+    self.cancelButton.clicked.connect(self.cancelDownload)
+    self.cancelButton.setEnabled(False)
+
     self.hLayout = QHBoxLayout()
     self.hLayout.addWidget(self.downloadButton)
     self.hLayout.addWidget(self.cancelButton)
-    
-    self.infoLayout = QHBoxLayout()
-    self.infoLayout.addWidget(self.speed)
-    self.infoLayout.addWidget(self.estimatedTime)
+
+
 
     self.layout = QVBoxLayout()
     self.layout.addWidget(self.label)
@@ -161,8 +188,7 @@ class VideoDownloader(QWidget):
     self.layout.addWidget(self.selectQuality)
     self.layout.addWidget(self.qualityDropdown)
     self.layout.addWidget(self.allowPlaylist)
-    self.layout.addWidget(self.progress)
-    self.layout.addWidget(self.status)
+
     self.layout.addLayout(self.infoLayout)
     self.layout.addLayout(self.hLayout)
     
@@ -172,13 +198,17 @@ class VideoDownloader(QWidget):
 
   def load_styles(self):
     return """
+
     #mainWindow {
-      color: #d8dee9;
+      background-color: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 1,
+                                        stop: 0 #313131, stop: 1 #4A4A4A);
       font-family: 'Segoe UI';
       font-size: 12px;
     }
 
     #smallDropdown {
+        background-color: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 1,
+                                        stop: 0 red, stop: 1 blue);
       max-width: 80px;
       font-family: arial;
       font-weight: bold;
