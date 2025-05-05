@@ -1,6 +1,6 @@
 import yt_dlp, sys, json
 from yt_dlp.utils import DownloadError
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QPushButton,QHBoxLayout, QVBoxLayout, QLineEdit, QProgressBar, QComboBox, QCheckBox
+from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QFrame, QPushButton,QHBoxLayout, QVBoxLayout, QLineEdit, QProgressBar, QComboBox, QCheckBox
 from PyQt5.QtCore import Qt, pyqtSignal, QThread
 
 class DownloadCancelled(Exception):
@@ -101,118 +101,152 @@ videoQuality = {
 class VideoDownloader(QWidget):
   def __init__(self):
     super().__init__()
+
     self.setWindowTitle('Portable Video Downloader')
     self.setGeometry(100, 100, 1280, 720)  # x, y, width, height
-    self.setObjectName('mainWindow')
+    # self.setObjectName('mainWindow')
 
-    # Item 1 : 
+    # Item 1 : Paste Layout ---- 1st layer
+
     # 1.1 : Paste Link Layout ------------------------------------------------
+    self.paste_container = QFrame()
+    self.paste_layout = QHBoxLayout() 
     self.label = QLabel('Paste Link')
-    self.label.setObjectName('labels')
-    self.label.setAlignment(Qt.AlignLeft)
-
     self.link = QLineEdit()
-    self.link.setAlignment(Qt.AlignLeft)
     self.link.setPlaceholderText('Paste Link Here...')
 
-    self.LinkLayout = QHBoxLayout() # First Layer
-    self.LinkLayout.addWidget(self.label)
-    self.LinkLayout.addWidget(self.link)
+    self.paste_layout.addWidget(self.label)
+    self.paste_layout.addWidget(self.link)
+    self.paste_container.setLayout(self.paste_layout)
+    self.paste_container.setObjectName('paste_container')
 
-    # Item 2 : 
-    # 2.1 : Progressbar and Speed Layout -------------------------------------
+    # # Item 2 : Download Information and Options ---- 2nd layer
+
+    # # 2.1 : Progressbar and Speed Layout --------------- let side
+    self.info_container = QFrame()
     self.progress = QProgressBar()
     self.progress.setValue(0)
 
     self.status = QLabel('Status : --- ')
-    self.status.setAlignment(Qt.AlignLeft)
-
     self.estimatedTime = QLabel('ETA : N/A')
-    self.estimatedTime.setAlignment(Qt.AlignLeft)
-
     self.speed = QLabel('Speed : N/A')
-    self.speed.setAlignment(Qt.AlignLeft)
 
     self.downloadInfoLayout = QVBoxLayout()
     self.downloadInfoLayout.addWidget(self.progress)
     self.downloadInfoLayout.addWidget(self.status)
     self.downloadInfoLayout.addWidget(self.speed)
     self.downloadInfoLayout.addWidget(self.estimatedTime)
-   
-    # 2.2 : Options Section --------------------------------------------------
-    #Allow Playlist Download
-    self.allowPlaylist = QCheckBox('Playlist Download')
-    self.allowPlaylist.setObjectName('labels')
-    self.allowPlaylist.setChecked(False)
 
-    #Adding a Quality Selector Dropdown
+    self.info_container.setLayout(self.downloadInfoLayout)
+    self.info_container.setObjectName('info_container')
+   
+    # # 2.2 : Options Section ---------------------------- right side
+
+    self.options_container = QFrame()
+
+    # Adding a Quality Selector Dropdown
     self.selectQuality = QLabel('Select Quality : 8k (Default)')
     self.qualityDropdown = QComboBox()
-    self.selectQuality.setObjectName('labels')
-    self.qualityDropdown.setObjectName('smallDropdown')
+    self.qualityDropdown.setObjectName('quality_dropdown')
     for quality in videoQuality:
       self.qualityDropdown.addItem(quality)
     self.qualityDropdown.currentIndexChanged.connect(self.setQuality)
 
-    self.qualityLayout = QHBoxLayout() 
-    self.qualityLayout.addWidget(self.selectQuality)
-    self.qualityLayout.addWidget(self.qualityDropdown)
+    self.qualityBlock = QHBoxLayout() 
+    self.qualityBlock.addWidget(self.selectQuality)
+    self.qualityBlock.addWidget(self.qualityDropdown)
 
-    self.groupOptionLayout = QVBoxLayout() 
-    self.groupOptionLayout.addWidget(self.allowPlaylist)
-    self.groupOptionLayout.addLayout(self.qualityLayout)
-    
-    self.InfoAndOptionLayout = QHBoxLayout()  # Second Layer
-    self.InfoAndOptionLayout.addLayout(self.downloadInfoLayout)
-    self.InfoAndOptionLayout.addLayout(self.groupOptionLayout)
+    # Allow Playlist Download
+    self.allowPlaylist = QCheckBox('Playlist Download')
+    self.allowPlaylist.setChecked(False)
 
-    #Item 3 : ( In Development )
-    # 3.1 : Download Location
+    # Allow Sound Only Download
+    self.soundOnlyCheckbox = QCheckBox('Sound Only')
+    self.soundOnlyCheckbox.setChecked(False)
+
+    # Making a block, added in option_container for style
+    self.groupOption = QVBoxLayout() 
+    self.groupOption.addLayout(self.qualityBlock)
+    self.groupOption.addWidget(self.allowPlaylist)
+    self.groupOption.addWidget(self.soundOnlyCheckbox)
+    self.options_container.setLayout(self.groupOption)
+    self.options_container.setObjectName('options_container')
+
+    self.InfoAndOptionLayout = QHBoxLayout()
+    self.InfoAndOptionLayout.addWidget(self.info_container)
+    self.InfoAndOptionLayout.addWidget(self.options_container)
+
+    # The Second Container containing download and options
+    self.second_container = QFrame()
+    self.second_container.setLayout(self.InfoAndOptionLayout)
+    self.second_container.setObjectName('second_container')
+    # self.second_container.
+
+    # #Item 3 : ( In Development )
+    # # 3.1 : Download Location
+    self.third_container = QFrame()
     self.locationLabel = QLabel('Select Location')
 
     self.storageLayout = QHBoxLayout()      # Third Layer
     self.storageLayout.addWidget(self.locationLabel)
+    self.third_container.setLayout(self.storageLayout)
+    self.third_container.setObjectName('third_container')
 
 
-    #Item 4 : 
-    # 4.1 : Buttons
+    # #Item 4 : Download Buttons
+    self.fourth_container = QFrame()
+    # # 4.1 : Buttons
     self.downloadButton = QPushButton('Download')
     self.downloadButton.clicked.connect(self.startDownload)
     self.downloadButton.setObjectName('downloadButton')
 
     self.pauseButton = QPushButton('Pause')
-    # self.pauseButton.clicked.connect()
     self.pauseButton.setObjectName('pauseButton')
 
     self.cancelButton = QPushButton('Cancel')
-    self.cancelButton.setObjectName('cancelBtn')
     self.cancelButton.clicked.connect(self.cancelDownload)
     self.cancelButton.setEnabled(False)
+    self.cancelButton.setObjectName('cancelBtn')
 
     self.buttonLayout = QHBoxLayout()
     self.buttonLayout.addWidget(self.downloadButton)
     self.buttonLayout.addWidget(self.pauseButton)
     self.buttonLayout.addWidget(self.cancelButton)
 
-    #Item 5 :
-    #5.1 : History
-    self.historyLabel = QLabel('History Layout tho its small rn')
+    self.fourth_container.setLayout(self.buttonLayout)
+    self.fourth_container.setObjectName('fourth_container')
 
+
+    # #Item 5 :
+    # #5.1 : History
+    self.history_container = QFrame()
+
+    self.historyLabel = QLabel('History Layout')
     self.historyItems = QLabel("Item name")
 
     self.historyLayout = QVBoxLayout()
     self.historyLayout.addWidget(self.historyLabel)
     self.historyLayout.addWidget(self.historyItems)
 
-    self.leftSideLayout = QVBoxLayout()
-    self.leftSideLayout.addLayout(self.LinkLayout)
-    self.leftSideLayout.addLayout(self.InfoAndOptionLayout)
-    self.leftSideLayout.addLayout(self.storageLayout)
-    self.leftSideLayout.addLayout(self.buttonLayout)
+    self.history_container.setLayout(self.historyLayout)
+    self.history_container.setObjectName('history_container')
 
+    self.leftLayout = QVBoxLayout()
+    self.leftLayout.addWidget(self.paste_container)
+    self.leftLayout.addWidget(self.second_container)
+    self.leftLayout.addWidget(self.third_container)
+    self.leftLayout.addWidget(self.fourth_container)
+
+
+    #Main Layout Setup
+    self.main_container = QFrame()
     self.mainLayout = QHBoxLayout()
-    self.mainLayout.addLayout(self.leftSideLayout)
-    self.mainLayout.addLayout(self.historyLayout)
+
+    self.mainLayout.addLayout(self.leftLayout)
+    self.mainLayout.addWidget(self.history_container)
+
+    self.main_container.setLayout(self.mainLayout)
+    self.setObjectName('main_layout')
 
     self.setLayout(self.mainLayout)
     self.setStyleSheet(self.load_styles())
@@ -221,51 +255,64 @@ class VideoDownloader(QWidget):
   def load_styles(self):
     return """
 
-    #mainWindow {
+    #main_layout {
+      max-width: 1280px;
+      max-height: 720px;
       background-color: qlineargradient(x1: 0, y1: 0, x2: 1, y2: 1,
                                         stop: 0 #313131, stop: 1 #4A4A4A);
       font-family: 'Segoe UI';
       font-size: 12px;
     }
 
-    #smallDropdown {
-      max-width: 80px;
-      font-family: arial;
-      font-weight: bold;
+    #paste_container{ 
+      max-width: 740px;
+      max-height: 80px;
+      background-color: gray; 
+      color: white; 
+      border-radius: 8px;
+      box-shadow: 0px 0px 12px 0px;
+    }
+    
+    #info_container{
+      max-width: 200px;
+      max-height: 210px;
+      background-color: gray;
+      border-radius: 8px;
     }
 
-    #labels {
-      font-size: 12px; 
-      font-weight: bold; 
-      font-family: arial;
+    #options_container{
+      max-width: 528px;
+      max-height: 210px;
+      background-color: gray;
+      border-radius: 8px;
     }
 
-    #downloadButton {
-      color: black;
-      font-family: arial;
+    #second_container{
+      padding: 0px;
+      gap: 12px;
+      max-width: 740px;
+      max-height: 210px;
     }
 
-    #downloadButton:hover {
-      backgrouond-color: skyblue;
-      font-family: arial;
-      color: blue;
+    #third_container{
+      max-width: 740px;
+      max-height: 244px;
+      background-color: gray;
+      border-radius: 8px;
     }
 
-    #downloadButton:pressed {
-    border-radius: 4px;
-    background-color: blue;
-    color: white;
+    #fourth_container{
+      max-width: 740px;
+      max-height: 80px;
+      background-color: gray;
+      border-radius: 8px;
     }
 
-    #cancelBtn {
-      font-family: arial;
-    }
-
-    #cancelBtn:hover {
-      border-radius: 4px;
-      background-color: darkred;
-      font-family: arial;
-      color: white;
+    #history_container{
+      max-width: 500px;
+      max-height: 680px;
+      background-color: gray;
+      border-radius: 8px;
     }
     """
   
